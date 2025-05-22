@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }}{% endblock %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('.list_faculties') }}">Факультеты</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ form_title }}</li>
+        </ol>
+    </nav>
+
+    <h1>{{ form_title }}</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ form_action }}" id="facultyForm">
+        <div class="mb-3">
+            <label for="name" class="form-label">Название факультета</label>
+            <input type="text" class="form-control" id="name" name="name" value="{{ faculty.name if faculty else '' }}" maxlength="75" required>
+            <div id="nameHelp" class="form-text">Максимум 75 символов.</div>
+        </div>
+
+        <div class="mb-3">
+            <label for="short_name" class="form-label">Сокращение</label>
+            <input type="text" class="form-control" id="short_name" name="short_name" value="{{ faculty.short_name if faculty else '' }}" maxlength="10" required>
+            <div id="shortNameHelp" class="form-text">Максимум 10 символов.</div>
+        </div>
+
+        <div class="mb-3">
+            <label for="description" class="form-label">Описание</label>
+            <textarea class="form-control" id="description" name="description" rows="3" maxlength="150">{{ faculty.description if faculty and faculty.description else '' }}</textarea>
+            <div id="descriptionHelp" class="form-text">Максимум 150 символов.</div>
+        </div>
+        
+        {% if faculty and faculty.id %} {# Режим редактирования #}
+            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#confirmSaveFacultyModal">Сохранить изменения</button>
+        {% else %} {# Режим создания #}
+            <button type="submit" class="btn btn-primary">Создать факультет</button>
+        {% endif %}
+        <a href="{{ url_for('.list_faculties') }}" class="btn btn-secondary">Отмена</a>
+    </form>
+
+    {# Модальное окно подтверждения сохранения (только для режима редактирования факультета) #}
+    {% if faculty and faculty.id %}
+    <div class="modal fade" id="confirmSaveFacultyModal" tabindex="-1" aria-labelledby="confirmSaveFacultyModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmSaveFacultyModalLabel">Подтверждение сохранения</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Вы уверены, что хотите сохранить внесенные изменения для факультета <br><strong>{{ faculty.name }}</strong>?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" id="submitFacultyFormBtn">Да, сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Автоматическое скрытие flash-сообщений
+        var flashMessages = document.querySelectorAll('.alert-dismissible');
+        flashMessages.forEach(function(message) {
+            setTimeout(function() {
+                var bsAlert = new bootstrap.Alert(message);
+                bsAlert.close();
+            }, 5000); 
+        });
+
+        // Логика для модального окна подтверждения сохранения факультета
+        var facultyForm = document.getElementById('facultyForm');
+        var submitFacultyFormBtn = document.getElementById('submitFacultyFormBtn');
+        
+        if (facultyForm && submitFacultyFormBtn) { 
+            submitFacultyFormBtn.addEventListener('click', function() {
+                facultyForm.submit(); 
+            });
+        }
+    });
+</script>
+{% endblock %} 

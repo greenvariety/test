@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}Группы факультета {{ faculty.name }}{% endblock %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('faculties.list_faculties') }}">Факультеты</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ faculty.name }} (Группы)</li>
+        </ol>
+    </nav>
+
+    <h1>Группы факультета: {{ faculty.name }}</h1>
+    <p class="text-muted">({{ faculty.short_name }})</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <form method="GET" action="{{ url_for('.list_groups', faculty_id=faculty.id) }}" class="row g-3 align-items-end" id="filterSortFormGroups">
+                <div class="col-auto">
+                    <label for="search_query_group" class="form-label">Поиск</label>
+                    <input type="text" name="search_query" id="search_query_group" class="form-control" placeholder="Название, год, курс..." value="{{ search_query or '' }}" onchange="this.form.submit()">
+                </div>
+                <input type="hidden" name="sort_by" id="sort_by_input_group" value="{{ sort_by or '' }}">
+                <input type="hidden" name="order" id="order_input_group" value="{{ order or 'asc' }}">
+                <div class="col-auto">
+                    <a href="{{ url_for('.list_groups', faculty_id=faculty.id) }}" class="btn btn-secondary">Сброс</a>
+                </div>
+            </form>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('.create_group', faculty_id=faculty.id) }}" class="btn btn-primary">Добавить новую группу</a>
+        </div>
+    </div>
+    
+    {% if groups %}
+    <table class="table table-hover table-sm">
+        <thead>
+            <tr>
+                <th scope="col" class="sortable-header-group {% if sort_by and sort_by == 'name' %}active-sort-{{ order }}{% endif %}" data-sort="name">
+                    Название группы {% if sort_by and sort_by == 'name' %}{% if order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}
+                </th>
+                <th scope="col" class="sortable-header-group {% if sort_by and sort_by == 'year' %}active-sort-{{ order }}{% endif %}" data-sort="year">
+                    Год поступления {% if sort_by and sort_by == 'year' %}{% if order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}
+                </th>
+                <th scope="col" class="sortable-header-group {% if sort_by and sort_by == 'duration' %}active-sort-{{ order }}{% endif %}" data-sort="duration">
+                    Срок обучения {% if sort_by and sort_by == 'duration' %}{% if order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}
+                </th>
+                <th scope="col" class="sortable-header-group {% if sort_by and sort_by == 'course' %}active-sort-{{ order }}{% endif %}" data-sort="course">
+                    Курс {% if sort_by and sort_by == 'course' %}{% if order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}
+                </th>
+                <th scope="col" class="sortable-header-group {% if sort_by and sort_by == 'status' %}active-sort-{{ order }}{% endif %}" data-sort="status">
+                    Статус {% if sort_by and sort_by == 'status' %}{% if order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}
+                </th>
+                <th scope="col" class="sortable-header-group {% if sort_by and sort_by == 'num_students' %}active-sort-{{ order }}{% endif %}" data-sort="num_students">
+                    Кол-во студентов {% if sort_by and sort_by == 'num_students' %}{% if order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}
+                </th>
+                <th scope="col">Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for group_item in groups %}
+            <tr>
+                <td>{{ group_item.name }}</td>
+                <td>{{ group_item.year }}</td>
+                <td>{{ group_item.duration }} г.</td>
+                <td>{{ group_item.course }}</td>
+                <td>{{ group_item.status }}</td>
+                <td>{{ group_item.num_students }}</td>
+                <td>
+                    <a href="{{ url_for('group_students.list_students_in_group', group_id=group_item.id) }}" class="btn btn-sm btn-primary" title="Просмотр студентов">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                    <a href="{{ url_for('groups.edit_group', id=group_item.id) }}" class="btn btn-sm btn-warning" title="Редактировать">
+                        <i class="bi bi-pencil"></i>
+                    </a>
+                    <button type="button" class="btn btn-sm btn-danger delete-group-btn" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#confirmDeleteGroupModal"
+                            data-group-id="{{ group_item.id }}"
+                            data-group-name="{{ group_item.name }}"
+                            title="Удалить">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Для данного факультета группы еще не созданы или не найдены по вашему запросу.</p>
+    {% endif %}
+
+    <!-- Модальное окно подтверждения удаления -->
+    <div class="modal fade" id="confirmDeleteGroupModal" tabindex="-1" aria-labelledby="confirmDeleteGroupModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmDeleteGroupModalLabel">Подтверждение удаления</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Вы уверены, что хотите удалить группу <strong id="groupNameToDeleteModal"></strong>?
+                    <br><small class="text-danger">Все связанные студенты также будут удалены (если настроено)!</small>
+                </div>
+                <div class="modal-footer">
+                    <form id="deleteGroupForm" method="POST" action="">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-danger">Удалить</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Логика для модального окна удаления группы
+    const confirmDeleteGroupModal = document.getElementById('confirmDeleteGroupModal');
+    if (confirmDeleteGroupModal) {
+        confirmDeleteGroupModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const groupId = button.getAttribute('data-group-id');
+            const groupName = button.getAttribute('data-group-name');
+            
+            const modalBodyGroupName = confirmDeleteGroupModal.querySelector('#groupNameToDeleteModal');
+            const deleteForm = confirmDeleteGroupModal.querySelector('#deleteGroupForm');
+
+            modalBodyGroupName.textContent = groupName;
+            deleteForm.action = "{{ url_for('groups.delete_group', id=0) }}".replace('0', groupId);
+        });
+    }
+
+    // Логика для сортировки таблицы групп
+    const sortableHeadersGroup = document.querySelectorAll('.sortable-header-group');
+    const sortByInputGroup = document.getElementById('sort_by_input_group');
+    const orderInputGroup = document.getElementById('order_input_group');
+    const searchFormGroup = document.getElementById('filterSortFormGroups'); 
+
+    const currentSortGroup = sortByInputGroup.value;
+    const currentOrderGroup = orderInputGroup.value;
+
+    sortableHeadersGroup.forEach(header => {
+        const sortKey = header.dataset.sort;
+        // Очищаем старые стрелки перед добавлением новых
+        // Используем innerText, чтобы сохранить существующие элементы, если они есть, и только заменить текст
+        let headerText = header.innerText.replace(/ ▲| ▼/g, '').trim();
+        header.innerHTML = headerText; // Сначала устанавливаем текст без стрелок
+
+        if (currentSortGroup === sortKey) {
+            if (currentOrderGroup === 'asc') {
+                header.innerHTML += ' ▲';
+            } else if (currentOrderGroup === 'desc') {
+                header.innerHTML += ' ▼';
+            }
+        }
+
+        header.addEventListener('click', function () {
+            const newSort = this.dataset.sort;
+
+            if (currentSortGroup === newSort) {
+                if (currentOrderGroup === 'asc') {
+                    orderInputGroup.value = 'desc';
+                } else { 
+                    sortByInputGroup.value = ''; // Сброс на сортировку по умолчанию (name)
+                    orderInputGroup.value = 'asc';
+                }
+            } else {
+                sortByInputGroup.value = newSort;
+                orderInputGroup.value = 'asc';
+            }
+            if (searchFormGroup) {
+                searchFormGroup.submit();
+            }
+        });
+    });
+
+    // Автоматическое скрытие flash-сообщений
+    var flashMessages = document.querySelectorAll('.alert-dismissible');
+    flashMessages.forEach(function(message) {
+        setTimeout(function() {
+            var bsAlert = new bootstrap.Alert(message);
+            bsAlert.close();
+        }, 5000); 
+    });
+});
+</script>
+<style>
+    .sortable-header-group {
+        cursor: pointer;
+    }
+    .sortable-header-group:hover {
+        background-color: #f8f9fa; /* Light hover effect */
+    }
+    .active-sort-asc, .active-sort-desc {
+        background-color: #e9ecef; /* Slightly darker for active sort */
+    }
+</style>
+{% endblock %} 

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }}{% endblock %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('faculties.list_faculties') }}">Факультеты</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('faculty_groups.list_groups', faculty_id=faculty.id) }}">{{ faculty.name }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ form_title }}</li>
+        </ol>
+    </nav>
+
+    <h1>{{ form_title }} для факультета {{ faculty.name }}</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ form_action }}" id="groupForm">
+        <div class="mb-3">
+            <label for="year" class="form-label">Год поступления <span class="text-danger">*</span></label>
+            <select class="form-select" id="year" name="year" required>
+                {% set current_year_val = namespace(value=current_year) %}
+                {% set selected_year = submitted_form_data.year if submitted_form_data else (group.year if group else default_selection_year) %}
+                {% set default_selection_year = current_year_val.value %}
+                {% if default_selection_year < 2018 %}{% set default_selection_year = 2018 %}{% endif %}
+                {% if default_selection_year > 2042 %}{% set default_selection_year = 2042 %}{% endif %}
+                {% if not submitted_form_data and not group %}{% set selected_year = default_selection_year %}{% endif %}
+                {% if selected_year|int not in range(2018, 2043) %}
+                    <option value="{{ selected_year }}" selected>{{ selected_year }}</option>
+                {% endif %}
+                {% for i in range(2042, 2017, -1) %}
+                    <option value="{{ i }}" {% if i == selected_year|int %}selected{% endif %}>{{ i }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="duration" class="form-label">Срок обучения (лет) <span class="text-danger">*</span></label>
+            <select class="form-select" id="duration" name="duration" required>
+                <option value="4" {% if (group and group.duration == 4) or (not group and request.form.get('duration') == '4') %}selected{% endif %}>4 года</option>
+                <option value="5" {% if (group and group.duration == 5) or (not group and request.form.get('duration') == '5') %}selected{% endif %}>5 лет</option>
+            </select>
+        </div>
+        
+        {% if group and group.id %} {# Режим редактирования #}
+            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#confirmSaveGroupModal">Сохранить изменения</button>
+        {% else %} {# Режим создания #}
+            <button type="submit" class="btn btn-primary">Создать группу</button>
+        {% endif %}
+        <a href="{{ url_for('faculty_groups.list_groups', faculty_id=faculty.id) }}" class="btn btn-secondary">Отмена</a>
+    </form>
+
+    {# Модальное окно подтверждения сохранения (только для режима редактирования группы) #}
+    {% if group and group.id %}
+    <div class="modal fade" id="confirmSaveGroupModal" tabindex="-1" aria-labelledby="confirmSaveGroupModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmSaveGroupModalLabel">Подтверждение сохранения</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Вы уверены, что хотите сохранить внесенные изменения для группы <strong>{{ group.name }}</strong>?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" id="submitGroupFormBtn">Да, сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Автоматическое скрытие flash-сообщений
+        var flashMessages = document.querySelectorAll('.alert-dismissible');
+        flashMessages.forEach(function(message) {
+            setTimeout(function() {
+                var bsAlert = new bootstrap.Alert(message);
+                bsAlert.close();
+            }, 5000);
+        });
+
+        // Логика для модального окна подтверждения сохранения (только если оно есть на странице)
+        var groupForm = document.getElementById('groupForm');
+        var submitGroupFormBtn = document.getElementById('submitGroupFormBtn'); // Эта кнопка есть только в модальном окне
+        
+        if (groupForm && submitGroupFormBtn) { // Проверяем наличие обеих переменных
+            submitGroupFormBtn.addEventListener('click', function() {
+                groupForm.submit(); // Программно отправляем форму
+            });
+        }
+    });
+</script>
+{% endblock %} 

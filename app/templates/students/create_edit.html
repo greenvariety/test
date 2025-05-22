@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }}{% endblock %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('faculties.list_faculties') }}">Факультеты</a></li>
+            {% if group and faculty %}
+                <li class="breadcrumb-item"><a href="{{ url_for('faculty_groups.list_groups', faculty_id=faculty.id) }}">{{ faculty.name }}</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('group_students.list_students_in_group', group_id=group.id) }}">Группа {{ group.name }}</a></li>
+            {% endif %}
+            <li class="breadcrumb-item active" aria-current="page">{{ form_title }}</li>
+        </ol>
+    </nav>
+
+    <h1>{{ form_title }}</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ form_action }}" id="studentForm">
+        {{ form.hidden_tag() if form and form.hidden_tag }} {# Для CSRF токена, если используется WTForms #}
+        
+        <div class="mb-3">
+            <label for="full_name" class="form-label">ФИО студента</label>
+            <input type="text" class="form-control" id="full_name" name="full_name" value="{{ student.full_name if student else '' }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="date_of_birth" class="form-label">Дата рождения</label>
+            <input type="date" class="form-control" id="date_of_birth" name="date_of_birth" value="{{ student.date_of_birth.strftime('%Y-%m-%d') if student and student.date_of_birth else '' }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="phone_number" class="form-label">Номер телефона</label>
+            <input type="tel" class="form-control" id="phone_number" name="phone_number" value="{{ student.phone_number if student else '' }}" required>
+        </div>
+        
+        <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="email" name="email" value="{{ student.email if student else '' }}" required>
+        </div>
+
+        {% if student and student.id %} {# Режим редактирования #}
+            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#confirmSaveStudentModal">Сохранить изменения</button>
+        {% else %} {# Режим создания #}
+            <button type="submit" class="btn btn-primary">Создать студента</button>
+        {% endif %}
+        
+        {% if group %}
+            <a href="{{ url_for('group_students.list_students_in_group', group_id=group.id) }}" class="btn btn-secondary">Отмена</a>
+        {% else %}
+             <a href="{{ url_for('faculties.list_faculties') }}" class="btn btn-secondary">Отмена</a> {# Фоллбэк, если группа не определена #}
+        {% endif %}
+    </form>
+
+    {# Модальное окно подтверждения сохранения (только для режима редактирования студента) #}
+    {% if student and student.id %}
+    <div class="modal fade" id="confirmSaveStudentModal" tabindex="-1" aria-labelledby="confirmSaveStudentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmSaveStudentModalLabel">Подтверждение сохранения</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Вы уверены, что хотите сохранить изменения для студента <br><strong>{{ student.full_name }}</strong>?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" id="submitStudentFormBtn">Да, сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Автоматическое скрытие flash-сообщений
+        var flashMessages = document.querySelectorAll('.alert-dismissible');
+        flashMessages.forEach(function(message) {
+            setTimeout(function() {
+                var bsAlert = new bootstrap.Alert(message);
+                bsAlert.close();
+            }, 5000); 
+        });
+
+        // Логика для модального окна подтверждения сохранения студента
+        var studentForm = document.getElementById('studentForm');
+        var submitStudentFormBtn = document.getElementById('submitStudentFormBtn');
+        
+        if (studentForm && submitStudentFormBtn) { 
+            submitStudentFormBtn.addEventListener('click', function() {
+                studentForm.submit(); 
+            });
+        }
+    });
+</script>
+{% endblock %} 

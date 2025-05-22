@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}Студенты группы: {{ group.name }}{% endblock %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('faculties.list_faculties') }}">Факультеты</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('faculty_groups.list_groups', faculty_id=group.faculty.id) }}">{{ group.faculty.name }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Группа {{ group.name }}</li>
+        </ol>
+    </nav>
+
+    <h1>Студенты группы: {{ group.name }}</h1>
+    <p class="lead">Факультет: {{ group.faculty.name }} ({{ group.faculty.short_name }})</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <form method="GET" action="{{ url_for('group_students.list_students_in_group', group_id=group.id) }}" class="row g-3 align-items-end" id="filterSortFormStudents">
+                <div class="col-auto">
+                    <label for="search_query_student" class="form-label">Поиск</label>
+                    <input type="text" name="search_query" id="search_query_student" class="form-control" placeholder="ФИО, дата, email..." value="{{ search_query }}" onchange="this.form.submit()">
+                </div>
+                <input type="hidden" name="sort_by" id="sort_by_input_student" value="{{ sort_by }}">
+                <input type="hidden" name="order" id="order_input_student" value="{{ order }}">
+                <div class="col-auto">
+                    <a href="{{ url_for('group_students.list_students_in_group', group_id=group.id) }}" class="btn btn-secondary">Сброс</a>
+                </div>
+            </form>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('group_students.create_student_in_group', group_id=group.id) }}" class="btn btn-primary">Добавить нового студента</a>
+        </div>
+    </div>
+
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th scope="col" class="sortable-header-student {% if sort_by and sort_by == 'full_name' %}active-sort-{{ order }}{% endif %}" data-sort="full_name">
+                    ФИО {% if sort_by and sort_by == 'full_name' %}{% if order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}
+                </th>
+                <th scope="col" class="sortable-header-student {% if sort_by and sort_by == 'date_of_birth' %}active-sort-{{ order }}{% endif %}" data-sort="date_of_birth">
+                    Дата рождения {% if sort_by and sort_by == 'date_of_birth' %}{% if order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}
+                </th>
+                <th scope="col" class="sortable-header-student {% if sort_by and sort_by == 'phone_number' %}active-sort-{{ order }}{% endif %}" data-sort="phone_number">
+                    Телефон {% if sort_by and sort_by == 'phone_number' %}{% if order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}
+                </th>
+                <th scope="col" class="sortable-header-student {% if sort_by and sort_by == 'email' %}active-sort-{{ order }}{% endif %}" data-sort="email">
+                    Email {% if sort_by and sort_by == 'email' %}{% if order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}
+                </th>
+                <th scope="col">Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for student_item in students %}
+            <tr>
+                <td>{{ student_item.full_name }}</td>
+                <td>{{ student_item.date_of_birth_str }}</td>
+                <td>{{ student_item.phone_number }}</td>
+                <td>{{ student_item.email }}</td>
+                <td>
+                    <a href="{{ url_for('students.edit_student', student_id=student_item.id) }}" class="btn btn-sm btn-warning" title="Редактировать">
+                        <i class="bi bi-pencil"></i>
+                    </a>
+                    <button type="button" class="btn btn-sm btn-danger delete-student-btn" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#confirmDeleteStudentModal"
+                            data-student-id="{{ student_item.id }}"
+                            data-student-name="{{ student_item.full_name }}"
+                            title="Удалить">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="text-center">В этой группе пока нет студентов или по вашему запросу ничего не найдено.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Модальное окно подтверждения удаления студента -->
+    <div class="modal fade" id="confirmDeleteStudentModal" tabindex="-1" aria-labelledby="confirmDeleteStudentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmDeleteStudentModalLabel">Подтверждение удаления</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Вы уверены, что хотите удалить студента <strong id="studentNameToDeleteModal"></strong>?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <form id="deleteStudentForm" method="POST" style="display:inline;">
+                        <button type="submit" class="btn btn-danger">Удалить</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Flash-сообщения
+        document.querySelectorAll('.alert-dismissible').forEach(function(message) {
+            setTimeout(function() { new bootstrap.Alert(message).close(); }, 5000);
+        });
+
+        // Модальное окно удаления студента
+        var confirmDeleteStudentModal = document.getElementById('confirmDeleteStudentModal');
+        if (confirmDeleteStudentModal) {
+            confirmDeleteStudentModal.addEventListener('show.bs.modal', function (event) {
+                var button = event.relatedTarget;
+                var studentId = button.getAttribute('data-student-id');
+                var studentName = button.getAttribute('data-student-name');
+                var deleteUrl = "{{ url_for('students.delete_student', student_id=0) }}".replace('0', studentId);
+                
+                const modalStudentName = confirmDeleteStudentModal.querySelector('#studentNameToDeleteModal');
+                const deleteForm = confirmDeleteStudentModal.querySelector('#deleteStudentForm');
+
+                modalStudentName.textContent = studentName;
+                deleteForm.action = deleteUrl;
+            });
+        }
+
+        // Логика для сортировки таблицы студентов
+        const sortableHeadersStudent = document.querySelectorAll('.sortable-header-student');
+        const sortByInputStudent = document.getElementById('sort_by_input_student');
+        const orderInputStudent = document.getElementById('order_input_student');
+        const searchFormStudent = document.getElementById('filterSortFormStudents');
+
+        // Устанавливаем текущее состояние сортировки для отображения стрелок
+        const currentSortStudent = sortByInputStudent.value;
+        const currentOrderStudent = orderInputStudent.value;
+
+        sortableHeadersStudent.forEach(header => {
+            const sortKey = header.dataset.sort;
+            // Очищаем старые стрелки перед добавлением новых
+            header.innerHTML = header.innerHTML.replace(/ ▲| ▼/g, ''); 
+
+            if (currentSortStudent === sortKey) {
+                if (currentOrderStudent === 'asc') {
+                    header.innerHTML += ' ▲';
+                } else if (currentOrderStudent === 'desc') {
+                    header.innerHTML += ' ▼';
+                }
+                // Если currentOrderStudent не 'asc' и не 'desc', значит это состояние "по умолчанию"
+                // и стрелку не добавляем, класс active-sort тоже не нужен в этом случае,
+                // но класс active-sort-{{ order }} обрабатывается в Jinja на основе sort_by из URL
+            }
+
+            header.addEventListener('click', function () {
+                const newSort = this.dataset.sort;
+
+                if (currentSortStudent === newSort) {
+                    // Клик по тому же столбцу
+                    if (currentOrderStudent === 'asc') {
+                        orderInputStudent.value = 'desc';
+                    } else { // Был 'desc' (или не 'asc'), теперь отмена сортировки (возврат к default)
+                        sortByInputStudent.value = ''; // Пустое значение для бэкенда = default (full_name)
+                        orderInputStudent.value = 'asc'; // Направление по умолчанию для следующего клика
+                    }
+                } else {
+                    // Клик по новому столбцу
+                    sortByInputStudent.value = newSort;
+                    orderInputStudent.value = 'asc';
+                }
+                if (searchFormStudent) {
+                    searchFormStudent.submit();
+                }
+            });
+        });
+    });
+</script>
+<style>
+    .sortable-header-student {
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
+    }
+    .sortable-header-student:hover {
+        text-decoration: underline;
+    }
+    .sortable-header-student small {
+        font-size: 0.7em;
+    }
+    .active-sort-asc, .active-sort-desc {
+        background-color: #e9ecef;
+    }
+</style>
+{% endblock %} 
