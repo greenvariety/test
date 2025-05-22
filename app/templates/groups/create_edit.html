@@ -46,8 +46,11 @@
         <div class="mb-3">
             <label for="duration" class="form-label">Срок обучения (лет) <span class="text-danger">*</span></label>
             <select class="form-select" id="duration" name="duration" required>
-                <option value="4" {% if (group and group.duration == 4) or (not group and request.form.get('duration') == '4') %}selected{% endif %}>4 года</option>
-                <option value="5" {% if (group and group.duration == 5) or (not group and request.form.get('duration') == '5') %}selected{% endif %}>5 лет</option>
+                {% set selected_duration = submitted_form_data.duration|int if submitted_form_data else (group.duration if group else 4) %}
+                {# Устанавливаем значение по умолчанию 4, если не редактирование и не было отправки формы #}
+                {% for i in range(2, 7) %}
+                    <option value="{{ i }}" {% if i == selected_duration %}selected{% endif %}>{{ i }} {% if i == 1 %}год{% elif i >= 2 and i <= 4 %}года{% else %}лет{% endif %}</option>
+                {% endfor %}
             </select>
         </div>
         

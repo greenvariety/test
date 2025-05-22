@@ -256,10 +256,10 @@ def delete_group(id):
         # Сейчас, предполагая, что каскадное удаление настроено или студенты обрабатываются отдельно:
         db.session.delete(group_to_delete)
         db.session.commit()
-        flash(f'Группа "{group_name}" и все связанные с ней студенты (если настроено каскадное удаление) были успешно удалены.', 'success')
+        flash(f'Группа "{group_name}" и все связанные с ней студенты были успешно удалены.', 'success')
     except Exception as e:
         db.session.rollback()
-        flash(f'Ошибка при удалении группы "{group_name}": {str(e)}', 'danger')
+        flash(f'Ошибка при удалении группы: {str(e)}', 'danger')
     return redirect(url_for('faculty_groups.list_groups', faculty_id=faculty_id_redirect))
 
 # Маршруты для CRUD групп будут добавлены сюда и в bp (для /groups/<id>/edit и /groups/<id>/delete) 

@@ -25,6 +25,9 @@ def create_app():
     # from .auth import bp as auth_bp # Убираем импорт auth blueprint
     # app.register_blueprint(auth_bp) # Убираем регистрацию auth blueprint
 
+    from .routes.main import main_bp
+    app.register_blueprint(main_bp)
+
     from .routes.faculties import bp as faculties_bp # Импорт blueprint факультетов
     app.register_blueprint(faculties_bp) # Регистрация blueprint факультетов
 
@@ -37,10 +40,6 @@ def create_app():
     app.register_blueprint(group_students_bp)   # Регистрация blueprint
     from .routes.students import students_bp # Общий blueprint для студентов (для edit/delete)
     app.register_blueprint(students_bp)
-
-    @app.route('/')
-    def index():
-        return 'Приложение для учета студентов, групп и факультетов' # Простое приветствие
 
     @app.context_processor
     def inject_current_year():
