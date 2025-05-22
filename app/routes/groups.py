@@ -30,11 +30,11 @@ def get_sort_key(item, column):
 def list_groups(faculty_id):
     faculty = Faculty.query.get_or_404(faculty_id)
     
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
     search_query = request.args.get('search_query', '').strip()
-    # Если sort_by не указан в запросе, он будет None.
-    # Это позволит нам не отображать стрелку сортировки в шаблоне по умолчанию.
     sort_column_from_request = request.args.get('sort_by')
-    current_sort_order = request.args.get('order', 'asc') # Порядок по умолчанию, если колонка задана
+    current_sort_order = request.args.get('order', 'asc')
 
     groups_from_db = Group.query.filter_by(faculty_id=faculty.id).all()
     
@@ -87,11 +87,49 @@ def list_groups(faculty_id):
     else: # Сортировка по умолчанию (если actual_sort_column == 'default' или его нет в ключах)
         processed_groups.sort(key=lambda x: x['name'].lower()) # по имени asc
 
+    # Пагинация обработанного и отсортированного списка
+    total_items = len(processed_groups)
+    start_index = (page - 1) * per_page
+    end_index = start_index + per_page
+    paginated_groups_list = processed_groups[start_index:end_index]
+
+    # Используем тот же SimplePagination класс (можно вынести его в utils, если используется в нескольких местах)
+    class SimplePagination:
+        def __init__(self, page, per_page, total_items, items):
+            self.page = page
+            self.per_page = per_page
+            self.total = total_items
+            self.items = items
+            self.pages = (total_items + per_page - 1) // per_page if total_items > 0 else 0
+        @property
+        def has_prev(self):
+            return self.page > 1
+        @property
+        def has_next(self):
+            return self.page < self.pages
+        @property
+        def prev_num(self):
+            return self.page - 1 if self.has_prev else None
+        @property
+        def next_num(self):
+            return self.page + 1 if self.has_next else None
+        def iter_pages(self, left_edge=1, left_current=1, right_current=2, right_edge=1):
+            last = 0
+            for num in range(1, self.pages + 1):
+                if num <= left_edge or \
+                   (num > self.page - left_current - 1 and num < self.page + right_current) or \
+                   num > self.pages - right_edge:
+                    if last + 1 != num:
+                        yield None
+                    yield num
+                    last = num
+
+    pagination_obj = SimplePagination(page, per_page, total_items, paginated_groups_list)
+
     return render_template('groups/list.html', 
-                           groups=processed_groups, 
+                           pagination=pagination_obj, 
                            faculty=faculty,
                            search_query=search_query,
-                           # Передаем в шаблон исходное значение sort_by из запроса (может быть None)
                            sort_by=sort_column_from_request, 
                            order=current_sort_order)
 

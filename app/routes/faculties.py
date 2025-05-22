@@ -16,6 +16,8 @@ def get_sort_key_faculties(item, column):
 
 @bp.route('/')
 def list_faculties():
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
     search_query = request.args.get('search_query', '').strip()
     sort_column = request.args.get('sort_by', 'default')
     sort_order = request.args.get('order', 'asc')
@@ -31,9 +33,10 @@ def list_faculties():
             )
         )
     
-    faculties_list_from_db = query.all()
+    all_matching_faculties_from_db = query.all()
+    
     faculties_processed = []
-    for faculty_obj in faculties_list_from_db:
+    for faculty_obj in all_matching_faculties_from_db:
         num_groups = Group.query.with_parent(faculty_obj).count()
         num_students = Student.query.join(Group).filter(Group.faculty_id == faculty_obj.id).count() if hasattr(Student, 'group_id') else 0
         faculties_processed.append({
@@ -45,15 +48,57 @@ def list_faculties():
             'num_students': num_students
         })
 
-    if sort_column != 'default' and sort_column in faculties_processed[0].keys() if faculties_processed else False:
+    if sort_column != 'default' and faculties_processed and sort_column in faculties_processed[0].keys():
         faculties_processed.sort(key=lambda x: get_sort_key_faculties(x, sort_column), reverse=(sort_order == 'desc'))
     elif not faculties_processed:
         pass
     else:
          faculties_processed.sort(key=lambda x: x['id'])
 
+    total_items = len(faculties_processed)
+    start_index = (page - 1) * per_page
+    end_index = start_index + per_page
+    paginated_faculties_list = faculties_processed[start_index:end_index]
+
+    class SimplePagination:
+        def __init__(self, page, per_page, total_items, items):
+            self.page = page
+            self.per_page = per_page
+            self.total = total_items
+            self.items = items
+            self.pages = (total_items + per_page - 1) // per_page if total_items > 0 else 0
+
+        @property
+        def has_prev(self):
+            return self.page > 1
+
+        @property
+        def has_next(self):
+            return self.page < self.pages
+
+        @property
+        def prev_num(self):
+            return self.page - 1 if self.has_prev else None
+
+        @property
+        def next_num(self):
+            return self.page + 1 if self.has_next else None
+
+        def iter_pages(self, left_edge=1, left_current=1, right_current=2, right_edge=1):
+            last = 0
+            for num in range(1, self.pages + 1):
+                if num <= left_edge or \
+                   (num > self.page - left_current - 1 and num < self.page + right_current) or \
+                   num > self.pages - right_edge:
+                    if last + 1 != num:
+                        yield None
+                    yield num
+                    last = num
+    
+    pagination_obj = SimplePagination(page, per_page, total_items, paginated_faculties_list)
+
     return render_template('faculties/list.html', 
-                           faculties=faculties_processed,
+                           pagination=pagination_obj,
                            search_query=search_query,
                            sort_by=sort_column,
                            order=sort_order

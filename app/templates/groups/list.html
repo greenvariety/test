@@ -43,7 +43,7 @@
         </div>
     </div>
     
-    {% if groups %}
+    {% if pagination and pagination.items %}
     <table class="table table-hover table-sm">
         <thead>
             <tr>
@@ -69,7 +69,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for group_item in groups %}
+            {% for group_item in pagination.items %}
             <tr>
                 <td>{{ group_item.name }}</td>
                 <td>{{ group_item.year }}</td>
@@ -99,6 +99,36 @@
     </table>
     {% else %}
     <p>Для данного факультета группы еще не созданы или не найдены по вашему запросу.</p>
+    {% endif %}
+
+    {# Пагинация #}
+    {% if pagination and pagination.pages > 1 %}
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            {# Ссылка на предыдущую страницу #}
+            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="{% if pagination.has_prev %}{{ url_for('.list_groups', faculty_id=faculty.id, page=pagination.prev_num, search_query=search_query, sort_by=sort_by, order=order) }}{% else %}#__{% endif %}" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+            {# Ссылки на страницы #}
+            {% for p_num in pagination.iter_pages() %}
+                {% if p_num %}
+                    <li class="page-item {% if p_num == pagination.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('.list_groups', faculty_id=faculty.id, page=p_num, search_query=search_query, sort_by=sort_by, order=order) }}">{{ p_num }}</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+            {# Ссылка на следующую страницу #}
+            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{% if pagination.has_next %}{{ url_for('.list_groups', faculty_id=faculty.id, page=pagination.next_num, search_query=search_query, sort_by=sort_by, order=order) }}{% else %}#__{% endif %}" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
     {% endif %}
 
     <!-- Модальное окно подтверждения удаления -->
