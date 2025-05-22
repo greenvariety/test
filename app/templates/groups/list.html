@@ -47,6 +47,9 @@
     <table class="table table-hover table-sm">
         <thead>
             <tr>
+                <th scope="col" class="sortable-header-group {% if sort_by and sort_by == 'id' %}active-sort-{{ order }}{% endif %}" data-sort="id">
+                    ID {% if sort_by and sort_by == 'id' %}{% if order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}
+                </th>
                 <th scope="col" class="sortable-header-group {% if sort_by and sort_by == 'name' %}active-sort-{{ order }}{% endif %}" data-sort="name">
                     Название группы {% if sort_by and sort_by == 'name' %}{% if order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}
                 </th>
@@ -71,6 +74,7 @@
         <tbody>
             {% for group_item in pagination.items %}
             <tr>
+                <td>{{ group_item.id }}</td>
                 <td>{{ group_item.name }}</td>
                 <td>{{ group_item.year }}</td>
                 <td>{{ group_item.duration }} г.</td>

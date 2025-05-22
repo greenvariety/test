@@ -47,6 +47,9 @@
     <table class="table table-hover">
         <thead>
             <tr>
+                <th scope="col" class="sortable-header-student {% if sort_by and sort_by == 'id' %}active-sort-{{ order }}{% endif %}" data-sort="id">
+                    ID {% if sort_by and sort_by == 'id' %}{% if order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}
+                </th>
                 <th scope="col" class="sortable-header-student {% if sort_by and sort_by == 'full_name' %}active-sort-{{ order }}{% endif %}" data-sort="full_name">
                     ФИО {% if sort_by and sort_by == 'full_name' %}{% if order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}
                 </th>
@@ -65,11 +68,15 @@
         <tbody>
             {% for student_item in students %}
             <tr>
+                <td>{{ student_item.id }}</td>
                 <td>{{ student_item.full_name }}</td>
                 <td>{{ student_item.date_of_birth_str }}</td>
                 <td>{{ student_item.phone_number }}</td>
                 <td>{{ student_item.email }}</td>
                 <td>
+                    <a href="{{ url_for('students.view_student_card', student_id=student_item.id) }}" class="btn btn-sm btn-info" title="Карточка студента">
+                        <i class="bi bi-person-badge"></i>
+                    </a>
                     <a href="{{ url_for('students.edit_student', student_id=student_item.id) }}" class="btn btn-sm btn-warning" title="Редактировать">
                         <i class="bi bi-pencil"></i>
                     </a>

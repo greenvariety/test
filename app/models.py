@@ -25,6 +25,10 @@ class Student(db.Model):
     phone_number = db.Column(db.String(32), nullable=False)
     email = db.Column(db.String(128), nullable=False, unique=True)
     group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
+    photo_filename = db.Column(db.String(255), nullable=True)
+
+    def __repr__(self):
+        return f"<Student {self.full_name}>"
 
 # class User(UserMixin, db.Model): # Комментируем или удаляем модель User
 #     id = db.Column(db.Integer, primary_key=True)

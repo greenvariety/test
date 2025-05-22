@@ -4,6 +4,10 @@ from app import db # Если будем что-то менять в БД, но 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_ # Для более сложных фильтров SQLAlchemy, если понадобится
 from datetime import datetime # Для преобразования строки в дату
+from werkzeug.utils import secure_filename
+from flask import current_app
+import os
+import uuid
 
 # Создаем два блюпринта:
 # 1. group_students_bp: для действий, связанных со студентами В КОНТЕКСТЕ группы 
@@ -86,165 +90,160 @@ def list_students_in_group(group_id):
                            sort_by=sort_column_for_template, # Передаем None или значение из URL
                            order=current_sort_order)
 
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in current_app.config['ALLOWED_EXTENSIONS']
+
 # TODO: Добавить другие маршруты для CRUD студентов:
 @group_students_bp.route('/create', methods=['GET', 'POST'])
 def create_student_in_group(group_id):
     group = Group.query.get_or_404(group_id)
     if request.method == 'POST':
+        full_name = request.form.get('full_name')
+        date_of_birth_str = request.form.get('date_of_birth')
+        phone_number = request.form.get('phone_number')
+        email = request.form.get('email')
+        photo = request.files.get('photo')
+        photo_filename_to_save = None
+
+        if not all([full_name, date_of_birth_str, phone_number, email]):
+            flash('Все поля, кроме фото, обязательны для заполнения.', 'danger')
+            # Передаем введенные данные обратно в шаблон
+            return render_template('students/create_edit.html', group=group, form_action=url_for('.create_student_in_group', group_id=group_id), form_title="Добавление нового студента", submitted_form_data=request.form)
+        
         try:
-            full_name = request.form.get('full_name')
-            date_of_birth_str = request.form.get('date_of_birth')
-            phone_number = request.form.get('phone_number')
-            email = request.form.get('email')
+            date_of_birth = datetime.strptime(date_of_birth_str, '%Y-%m-%d').date()
+        except ValueError:
+            flash('Неверный формат даты рождения. Используйте ГГГГ-ММ-ДД.', 'danger')
+            return render_template('students/create_edit.html', group=group, form_action=url_for('.create_student_in_group', group_id=group_id), form_title="Добавление нового студента", submitted_form_data=request.form)
 
-            # Проверка на обязательные поля (хотя HTML5 required должен это покрывать)
-            if not all([full_name, date_of_birth_str, phone_number, email]):
-                flash('Все поля обязательны для заполнения.', 'danger')
-                return render_template('students/create_edit.html', 
-                                       group=group,
-                                       form_title=f"Добавление студента в группу {group.name}",
-                                       form_action=url_for('.create_student_in_group', group_id=group.id),
-                                       student=None, # Для совместимости с редактированием
-                                       submitted_form_data=request.form) # Чтобы вернуть введенные данные
+        if photo:
+            if allowed_file(photo.filename):
+                filename = secure_filename(photo.filename)
+                # Для уникальности можно добавить timestamp или uuid к имени файла
+                # Например: filename = str(uuid.uuid4()) + "_" + secure_filename(photo.filename)
+                photo.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+                photo_filename_to_save = filename
+            else:
+                flash('Недопустимый тип файла для фотографии. Разрешены PNG, JPG, JPEG.', 'danger')
+                return render_template('students/create_edit.html', group=group, form_action=url_for('.create_student_in_group', group_id=group_id), form_title="Добавление нового студента", submitted_form_data=request.form)
 
-            try:
-                date_of_birth_obj = datetime.strptime(date_of_birth_str, '%Y-%m-%d').date()
-            except ValueError:
-                flash('Неверный формат даты рождения. Используйте ГГГГ-ММ-ДД.', 'danger')
-                return render_template('students/create_edit.html', 
-                                       group=group,
-                                       form_title=f"Добавление студента в группу {group.name}",
-                                       form_action=url_for('.create_student_in_group', group_id=group.id),
-                                       student=None, 
-                                       submitted_form_data=request.form)
-
+        try:
             new_student = Student(
-                full_name=full_name,
-                date_of_birth=date_of_birth_obj,
-                phone_number=phone_number,
-                email=email,
-                group_id=group.id
+                full_name=full_name, 
+                date_of_birth=date_of_birth, 
+                phone_number=phone_number, 
+                email=email, 
+                group_id=group.id,
+                photo_filename=photo_filename_to_save
             )
             db.session.add(new_student)
             db.session.commit()
             flash(f'Студент "{new_student.full_name}" успешно добавлен в группу {group.name}!', 'success')
             return redirect(url_for('.list_students_in_group', group_id=group.id))
-        
-        except IntegrityError as e:
-            db.session.rollback() # Откатываем сессию
-            if 'UNIQUE constraint failed: student.email' in str(e):
-                flash('Студент с таким email уже существует.', 'danger')
-            else:
-                flash(f'Ошибка базы данных: {str(e)}', 'danger')
-            return render_template('students/create_edit.html', 
-                                   group=group,
-                                   form_title=f"Добавление студента в группу {group.name}",
-                                   form_action=url_for('.create_student_in_group', group_id=group.id),
-                                   student=None, 
-                                   submitted_form_data=request.form)
+        except IntegrityError: # Обработка ошибки уникальности email
+            db.session.rollback()
+            flash('Студент с таким email уже существует.', 'danger')
         except Exception as e:
             db.session.rollback()
-            flash(f'Произошла непредвиденная ошибка: {str(e)}', 'danger')
-            return render_template('students/create_edit.html', 
-                                   group=group,
-                                   form_title=f"Добавление студента в группу {group.name}",
-                                   form_action=url_for('.create_student_in_group', group_id=group.id),
-                                   student=None, 
-                                   submitted_form_data=request.form)
-
-    # Для GET запроса просто отображаем форму
-    return render_template('students/create_edit.html', 
-                           group=group,
-                           form_title=f"Добавление студента в группу {group.name}",
-                           form_action=url_for('.create_student_in_group', group_id=group.id)
-                           # student=None (для совместимости с редактированием)
-                          )
+            flash(f'Произошла ошибка при добавлении студента: {str(e)}', 'danger')
+            
+    return render_template('students/create_edit.html', group=group, form_action=url_for('.create_student_in_group', group_id=group_id), form_title="Добавление нового студента")
 
 @students_bp.route('/<int:student_id>/edit', methods=['GET', 'POST'])
 def edit_student(student_id):
     student_to_edit = Student.query.get_or_404(student_id)
-    group = Group.query.get_or_404(student_to_edit.group_id) # Нужна группа для хлебных крошек и редиректа
+    group = student_to_edit.group # Получаем группу студента для хлебных крошек и т.д.
 
     if request.method == 'POST':
+        full_name = request.form.get('full_name')
+        date_of_birth_str = request.form.get('date_of_birth')
+        phone_number = request.form.get('phone_number')
+        email = request.form.get('email')
+        photo = request.files.get('photo')
+        delete_photo_checkbox = request.form.get('delete_photo')
+
+        if not all([full_name, date_of_birth_str, phone_number, email]):
+            flash('Все поля, кроме фото, обязательны для заполнения.', 'danger')
+            return render_template('students/create_edit.html', student=student_to_edit, group=group, form_action=url_for('.edit_student', student_id=student_id), form_title=f"Редактирование студента: {student_to_edit.full_name}", submitted_form_data=request.form)
+
         try:
-            full_name = request.form.get('full_name')
-            date_of_birth_str = request.form.get('date_of_birth')
-            phone_number = request.form.get('phone_number')
-            email = request.form.get('email')
+            date_of_birth = datetime.strptime(date_of_birth_str, '%Y-%m-%d').date()
+        except ValueError:
+            flash('Неверный формат даты рождения. Используйте ГГГГ-ММ-ДД.', 'danger')
+            return render_template('students/create_edit.html', student=student_to_edit, group=group, form_action=url_for('.edit_student', student_id=student_id), form_title=f"Редактирование студента: {student_to_edit.full_name}", submitted_form_data=request.form)
 
-            if not all([full_name, date_of_birth_str, phone_number, email]):
-                flash('Все поля обязательны для заполнения.', 'danger')
-                # При ошибке снова рендерим шаблон с уже введенными данными
-                return render_template('students/create_edit.html', 
-                                       group=group,
-                                       student=student_to_edit, # Передаем редактируемого студента
-                                       form_title=f"Редактирование студента {student_to_edit.full_name}",
-                                       form_action=url_for('students.edit_student', student_id=student_to_edit.id),
-                                       submitted_form_data=request.form)
-            
+        # Логика обработки фотографии
+        if delete_photo_checkbox and student_to_edit.photo_filename:
+            # Удаляем старый файл
             try:
-                date_of_birth_obj = datetime.strptime(date_of_birth_str, '%Y-%m-%d').date()
-            except ValueError:
-                flash('Неверный формат даты рождения. Используйте ГГГГ-ММ-ДД.', 'danger')
-                return render_template('students/create_edit.html', 
-                                       group=group, 
-                                       student=student_to_edit,
-                                       form_title=f"Редактирование студента {student_to_edit.full_name}",
-                                       form_action=url_for('students.edit_student', student_id=student_to_edit.id),
-                                       submitted_form_data=request.form)
+                os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], student_to_edit.photo_filename))
+            except OSError:
+                flash('Ошибка при удалении старой фотографии. Файл не найден.', 'warning')
+            student_to_edit.photo_filename = None
+        
+        if photo: # Если загружен новый файл
+            if allowed_file(photo.filename):
+                # Удаляем старый файл, если он был и не был помечен на удаление выше (на случай если грузят новый не удаляя старый явно)
+                if student_to_edit.photo_filename and not delete_photo_checkbox:
+                    try:
+                        os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], student_to_edit.photo_filename))
+                    except OSError:
+                        pass # Молча пропускаем, если старый файл не найден
+                
+                filename = secure_filename(photo.filename)
+                # filename = str(uuid.uuid4()) + "_" + secure_filename(photo.filename) # Для уникальности
+                photo.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+                student_to_edit.photo_filename = filename
+            else:
+                flash('Недопустимый тип файла для фотографии. Разрешены PNG, JPG, JPEG.', 'danger')
+                return render_template('students/create_edit.html', student=student_to_edit, group=group, form_action=url_for('.edit_student', student_id=student_id), form_title=f"Редактирование студента: {student_to_edit.full_name}", submitted_form_data=request.form)
 
-            student_to_edit.full_name = full_name
-            student_to_edit.date_of_birth = date_of_birth_obj
-            student_to_edit.phone_number = phone_number
-            student_to_edit.email = email
-            # student_to_edit.group_id не меняем здесь, для смены группы нужен отдельный механизм
-            
+        student_to_edit.full_name = full_name
+        student_to_edit.date_of_birth = date_of_birth
+        student_to_edit.phone_number = phone_number
+        student_to_edit.email = email
+        
+        try:
             db.session.commit()
             flash(f'Данные студента "{student_to_edit.full_name}" успешно обновлены!', 'success')
-            return redirect(url_for('group_students.list_students_in_group', group_id=group.id))
-
-        except IntegrityError as e:
+            return redirect(url_for('group_students.list_students_in_group', group_id=group.id)) # Редирект на список студентов группы
+        except IntegrityError: # Обработка ошибки уникальности email
             db.session.rollback()
-            if 'UNIQUE constraint failed: student.email' in str(e):
-                flash('Студент с таким email уже существует.', 'danger')
-            else:
-                flash(f'Ошибка базы данных при обновлении: {str(e)}', 'danger')
-            return render_template('students/create_edit.html', 
-                                   group=group, 
-                                   student=student_to_edit,
-                                   form_title=f"Редактирование студента {student_to_edit.full_name}",
-                                   form_action=url_for('students.edit_student', student_id=student_to_edit.id),
-                                   submitted_form_data=request.form)
+            flash('Студент с таким email уже существует (и это не данный студент).', 'danger')
         except Exception as e:
             db.session.rollback()
-            flash(f'Произошла непредвиденная ошибка при обновлении: {str(e)}', 'danger')
-            return render_template('students/create_edit.html', 
-                                   group=group, 
-                                   student=student_to_edit,
-                                   form_title=f"Редактирование студента {student_to_edit.full_name}",
-                                   form_action=url_for('students.edit_student', student_id=student_to_edit.id),
-                                   submitted_form_data=request.form)
+            flash(f'Произошла ошибка при обновлении данных студента: {str(e)}', 'danger')
 
-    # Для GET запроса
-    return render_template('students/create_edit.html', 
-                           group=group, 
-                           student=student_to_edit, 
-                           form_title=f"Редактирование студента {student_to_edit.full_name}",
-                           form_action=url_for('students.edit_student', student_id=student_to_edit.id)
-                          )
+    return render_template('students/create_edit.html', student=student_to_edit, group=group, form_action=url_for('.edit_student', student_id=student_id), form_title=f"Редактирование студента: {student_to_edit.full_name}")
+
+@students_bp.route('/<int:student_id>/view_card')
+def view_student_card(student_id):
+    student = Student.query.get_or_404(student_id)
+    return render_template('students/view_card.html', student=student)
 
 @students_bp.route('/<int:student_id>/delete', methods=['POST'])
 def delete_student(student_id):
     student_to_delete = Student.query.get_or_404(student_id)
-    group_id_redirect = student_to_delete.group_id # Запоминаем для редиректа
-    student_name = student_to_delete.full_name
+    group_id_redirect = student_to_delete.group_id
+    student_full_name = student_to_delete.full_name
+    photo_to_delete = student_to_delete.photo_filename # Сохраняем имя файла перед удалением объекта
+
     try:
         db.session.delete(student_to_delete)
         db.session.commit()
-        flash(f'Студент "{student_name}" был успешно удален.', 'success')
+
+        # Удаляем файл фотографии, если он был
+        if photo_to_delete:
+            try:
+                os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], photo_to_delete))
+            except OSError:
+                flash(f'Фотография для студента {student_full_name} не найдена на диске, но запись из БД удалена.', 'warning')
+
+        flash(f'Студент "{student_full_name}" успешно удален.', 'success')
     except Exception as e:
         db.session.rollback()
-        flash(f'Произошла ошибка при удалении студента "{student_name}": {str(e)}', 'danger')
+        flash(f'Ошибка при удалении студента: {str(e)}', 'danger')
     
     return redirect(url_for('group_students.list_students_in_group', group_id=group_id_redirect))
 

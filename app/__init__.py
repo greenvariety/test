@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 # from flask_login import LoginManager # Убираем Flask-Login
 import datetime
+import os # Import os module
 
 # Инициализация расширений
 
@@ -16,6 +17,13 @@ def create_app():
     app.config['SECRET_KEY'] = 'your_secret_key_here'
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['UPLOAD_FOLDER'] = 'app/static/uploads/student_photos'
+    app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
+    app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # 32 MB
+
+    # Ensure the upload folder exists
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        os.makedirs(app.config['UPLOAD_FOLDER'])
 
     db.init_app(app)
     migrate.init_app(app, db)

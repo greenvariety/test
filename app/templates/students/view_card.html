@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Карточка студента: {{ student.full_name }}{% endblock %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('faculties.list_faculties') }}">Факультеты</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('faculty_groups.list_groups', faculty_id=student.group.faculty.id) }}">{{ student.group.faculty.name }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('group_students.list_students_in_group', group_id=student.group.id) }}">Группа {{ student.group.name }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ student.full_name }}</li>
+        </ol>
+    </nav>
+
+    <h1>Карточка студента: {{ student.full_name }}</h1>
+
+    <div class="card mb-3" style="max-width: 700px;">
+        <div class="row g-0">
+            <div class="col-md-4">
+                {% if student.photo_filename %}
+                    <img src="{{ url_for('static', filename='uploads/student_photos/' + student.photo_filename) }}" 
+                         class="img-fluid rounded-start" 
+                         alt="Фото {{ student.full_name }}" 
+                         style="width: 100%; height: 300px; object-fit: cover;"> 
+                {% else %}
+                    <div style="width: 100%; height: 300px; background-color: #e9ecef; display: flex; align-items: center; justify-content: center;" class="rounded-start">
+                        <span class="text-muted">Нет фото</span>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="col-md-8">
+                <div class="card-body">
+                    <h5 class="card-title">{{ student.full_name }}</h5>
+                    <p class="card-text">
+                        <strong>Дата рождения:</strong> {{ student.date_of_birth.strftime('%d.%m.%Y') if student.date_of_birth else 'Не указана' }}<br>
+                        <strong>Телефон:</strong> {{ student.phone_number }}<br>
+                        <strong>Email:</strong> {{ student.email }}<br>
+                        <strong>Группа:</strong> {{ student.group.name }}<br>
+                        <strong>Факультет:</strong> {{ student.group.faculty.name }}
+                    </p>
+                    <p class="card-text"><small class="text-muted">ID Студента: {{ student.id }}</small></p>
+                    <a href="{{ url_for('students.edit_student', student_id=student.id) }}" class="btn btn-warning btn-sm">Редактировать</a>
+                    <a href="{{ url_for('group_students.list_students_in_group', group_id=student.group_id) }}" class="btn btn-secondary btn-sm">Назад к списку</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %} 
