@@ -41,6 +41,9 @@ def create_app():
     from .routes.students import students_bp # Общий blueprint для студентов (для edit/delete)
     app.register_blueprint(students_bp)
 
+    from .routes.export_import import export_import_bp
+    app.register_blueprint(export_import_bp)
+
     @app.context_processor
     def inject_current_year():
         return {'current_year': datetime.datetime.utcnow().year}
