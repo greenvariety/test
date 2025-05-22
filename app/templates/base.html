@@ -17,14 +17,8 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownImportExport" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            Данные
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownImportExport">
-                            <li><a class="dropdown-item" href="#">Импорт данных</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('export_import.export_excel') }}">Экспорт данных</a></li>
-                        </ul>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('export_import.export_excel') }}">Экспорт</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.welcome') }}">Выйти</a>
